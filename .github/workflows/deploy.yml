@@ -99,11 +99,16 @@ jobs:
           mkdir -p dist/.well-known
           cp public/.well-known/assetlinks.json dist/.well-known/ || true
 
-      - name: 8. Setup GitLab CI Configuration in Build Artifact
+      - name: 8. Setup GitLab CI and Directory Structure for GitLab Pages
         run: |
-          # Create the .gitlab-ci.yml inside the compiled dist folder.
-          # This tells GitLab to simply take the pre-compiled files and publish them.
-          cat << 'EOF' > ./main_site/dist/.gitlab-ci.yml
+          # Create a temporary deploy directory
+          mkdir -p ./deploy_dir
+
+          # Move the compiled Astro site (dist) into the deploy directory as 'public'
+          mv ./main_site/dist ./deploy_dir/public
+
+          # Create the .gitlab-ci.yml in the root of the deploy directory
+          cat << 'EOF' > ./deploy_dir/.gitlab-ci.yml
           pages:
             stage: deploy
             script:
@@ -115,14 +120,11 @@ jobs:
               - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
           EOF
 
-          # Rename the dist folder to public so it matches GitLab Pages requirements
-          mv ./main_site/dist ./public
-
       - name: 9. Force Push Compiled Site to GitLab main branch
         env:
           GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
         run: |
-          cd ./public
+          cd ./deploy_dir
           git init
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
