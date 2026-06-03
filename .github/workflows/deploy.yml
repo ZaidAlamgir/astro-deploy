@@ -1,0 +1,133 @@
+name: Build Astro Site and Deploy to GitLab Pages
+
+on:
+  # Trigger the build on repository dispatch (when GitLab content repo webhooks send a signal)
+  repository_dispatch:
+    types: [new-article-post]
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+  # Trigger when changes are pushed to this repo
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 2. Clone Website Source Code from GitLab
+        env:
+          GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+        run: |
+          # Clones the website source code from the 'astro-migration' branch
+          git clone --branch astro-migration "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" ./main_site
+
+      - name: 3. Create Content Staging Directories
+        run: |
+          mkdir -p ./_article_repos
+
+      - name: 4. Clone Content Repositories from GitLab
+        env:
+          GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+        run: |
+          clone_content_repo() {
+            local repo_name=$1
+            local target_dir=$2
+            echo "Cloning $repo_name..."
+            git clone "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/${repo_name}.git" "./_article_repos/${target_dir}" || echo "Skipping $repo_name"
+          }
+
+          clone_content_repo "articles-world-politics" "world-politics"
+          clone_content_repo "articles-indian-politics" "indian-politics"
+          clone_content_repo "articles-muslim-world" "muslim-world"
+          clone_content_repo "articles-technology" "technology"
+          clone_content_repo "articles-medical-science" "medical-science"
+          clone_content_repo "articles-global-economy" "global-economy"
+          clone_content_repo "articles-art-culture" "art-culture"
+          clone_content_repo "articles-weather" "weather"
+          clone_content_repo "articles-sports" "sports"
+          clone_content_repo "articles-national-news" "national-news"
+          clone_content_repo "articles-international-news" "international-news"
+          clone_content_repo "articles-history" "history"
+          clone_content_repo "articles-indian-muslims" "indian-muslims"
+          clone_content_repo "articles-middle-east" "middle-east"
+          clone_content_repo "articles-climate" "climate"
+          clone_content_repo "articles-defense" "defense"
+          clone_content_repo "articles-south-asia" "south-asia"
+          clone_content_repo "articles-africa" "africa"
+          clone_content_repo "articles-europe" "europe"
+          clone_content_repo "articles-central-asia" "central-asia"
+          clone_content_repo "articles-crime-alert" "crime-alert"
+          clone_content_repo "articles-south-east-asia" "south-east-asia"
+          clone_content_repo "articles-east-asia" "east-asia"
+          clone_content_repo "articles-north-america" "north-america"
+          clone_content_repo "articles-south-america" "south-america"
+          clone_content_repo "user-archives" "user-archives"
+          clone_content_repo "palestine" "palestine"
+          clone_content_repo "wars" "wars"
+          clone_content_repo "conflicts" "conflicts"
+          clone_content_repo "indian-economy" "indian-economy"
+
+      - name: 5. Consolidate Articles into Website Source
+        run: |
+          mkdir -p ./main_site/src/content/news
+          for dir in ./_article_repos/*; do
+            if [ -d "$dir/posts" ]; then
+              echo "Copying posts from $(basename $dir)..."
+              cp -r "$dir/posts"/. ./main_site/src/content/news/
+            fi
+          done
+          if [ -d "./_article_repos/user-archives/_posts" ]; then
+            echo "Copying user archives..."
+            cp -r "./_article_repos/user-archives/_posts/." ./main_site/src/content/news/
+          fi
+
+      - name: 6. Install Dependencies and Build Astro Site
+        working-directory: ./main_site
+        run: |
+          npm ci
+          npm run build
+
+      - name: 7. Prepare AssetLinks Rewrite
+        working-directory: ./main_site
+        run: |
+          cp public/.well-known/assetlinks.json dist/assetlinks.json || true
+          mkdir -p dist/.well-known
+          cp public/.well-known/assetlinks.json dist/.well-known/ || true
+
+      - name: 8. Setup GitLab CI Configuration in Build Artifact
+        run: |
+          # Create the .gitlab-ci.yml inside the compiled dist folder.
+          # This tells GitLab to simply take the pre-compiled files and publish them.
+          cat << 'EOF' > ./main_site/dist/.gitlab-ci.yml
+          pages:
+            stage: deploy
+            script:
+              - echo "Publishing pre-built site..."
+            artifacts:
+              paths:
+                - public
+            rules:
+              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+          EOF
+
+          # Rename the dist folder to public so it matches GitLab Pages requirements
+          mv ./main_site/dist ./public
+
+      - name: 9. Force Push Compiled Site to GitLab main branch
+        env:
+          GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+        run: |
+          cd ./public
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Deploy Astro site compiled by GitHub Actions"
+          
+          # Force push to the 'main' branch of your GitLab Pages project
+          git push --force "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" HEAD:main
