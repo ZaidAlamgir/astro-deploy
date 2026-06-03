@@ -23,8 +23,8 @@ jobs:
         env:
           GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
         run: |
-          # Clones the website source code from the 'astro-migration' branch
-          git clone --branch astro-migration "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" ./main_site
+          # Clones the website source code from the 'main' branch
+          git clone --branch main "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" ./main_site
 
       - name: 3. Create Content Staging Directories
         run: |
