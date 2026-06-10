@@ -263,8 +263,6 @@ jobs:
             artifacts:
               paths:
                 - public
-            rules:
-              - if: \$CI_COMMIT_BRANCH == \$CI_DEFAULT_BRANCH
           EOF
 
       - name: 35. Force Push Compiled Site to GitLab main
