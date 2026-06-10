@@ -1,14 +1,22 @@
 name: Build Astro Site and Deploy to GitLab Pages
 
 on:
-  # Trigger the build on repository dispatch (when GitLab content repo webhooks send a signal)
   repository_dispatch:
     types: [new-article-post]
-  # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:
-  # Trigger when changes are pushed to this repo
   push:
     branches: [main]
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -23,61 +31,203 @@ jobs:
         env:
           GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
         run: |
-          # Clones the website source code from the 'source' branch
           git clone --branch source "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" ./main_site
 
       - name: 3. Create Content Staging Directories
         run: |
+          mkdir -p ./main_site/src/content/news
           mkdir -p ./_article_repos
 
-      - name: 4. Clone Content Repositories from GitLab
-        env:
-          GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
-        run: |
-          clone_content_repo() {
-            local repo_name=$1
-            local target_dir=$2
-            echo "Cloning $repo_name..."
-            git clone "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/${repo_name}.git" "./_article_repos/${target_dir}" || echo "Skipping $repo_name"
-          }
+      # --- CHECKOUT CONTENT REPOS FROM GITHUB ORG (same as Jekyll workflow) ---
+      - name: 4. Checkout World Politics
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-world-politics
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/world-politics
 
-          clone_content_repo "articles-world-politics" "world-politics"
-          clone_content_repo "articles-indian-politics" "indian-politics"
-          clone_content_repo "articles-muslim-world" "muslim-world"
-          clone_content_repo "articles-technology" "technology"
-          clone_content_repo "articles-medical-science" "medical-science"
-          clone_content_repo "articles-global-economy" "global-economy"
-          clone_content_repo "articles-art-culture" "art-culture"
-          clone_content_repo "articles-weather" "weather"
-          clone_content_repo "articles-sports" "sports"
-          clone_content_repo "articles-national-news" "national-news"
-          clone_content_repo "articles-international-news" "international-news"
-          clone_content_repo "articles-history" "history"
-          clone_content_repo "articles-indian-muslims" "indian-muslims"
-          clone_content_repo "articles-middle-east" "middle-east"
-          clone_content_repo "articles-climate" "climate"
-          clone_content_repo "articles-defense" "defense"
-          clone_content_repo "articles-south-asia" "south-asia"
-          clone_content_repo "articles-africa" "africa"
-          clone_content_repo "articles-europe" "europe"
-          clone_content_repo "articles-central-asia" "central-asia"
-          clone_content_repo "articles-crime-alert" "crime-alert"
-          clone_content_repo "articles-south-east-asia" "south-east-asia"
-          clone_content_repo "articles-east-asia" "east-asia"
-          clone_content_repo "articles-north-america" "north-america"
-          clone_content_repo "articles-south-america" "south-america"
-          clone_content_repo "user-archives" "user-archives"
-          clone_content_repo "palestine" "palestine"
-          clone_content_repo "wars" "wars"
-          clone_content_repo "conflicts" "conflicts"
-          clone_content_repo "indian-economy" "indian-economy"
+      - name: 5. Checkout Indian Politics
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-indian-politics
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/indian-politics
 
-      - name: 5. Consolidate Articles into Website Source
+      - name: 6. Checkout Muslim World
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-muslim-world
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/muslim-world
+
+      - name: 7. Checkout Technology
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-technology
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/technology
+
+      - name: 8. Checkout Medical Science
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-medical-science
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/medical-science
+
+      - name: 9. Checkout Global Economy
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-global-economy
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/global-economy
+
+      - name: 10. Checkout Art & Culture
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-art-culture
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/art-culture
+
+      - name: 11. Checkout Weather
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-weather
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/weather
+
+      - name: 12. Checkout Sports
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-sports
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/sports
+
+      - name: 13. Checkout National News
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-national-news
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/national-news
+
+      - name: 14. Checkout International News
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-international-news
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/international-news
+
+      - name: 15. Checkout User Archives
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-user-archives
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/user-archives
+
+      - name: 16. Checkout History
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-history
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/history
+
+      - name: 17. Checkout Indian Muslims
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-indian-muslims
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/indian-muslims
+
+      - name: 18. Checkout Middle East
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-middle-east
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/middle-east
+
+      - name: 19. Checkout Climate
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-climate
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/climate
+
+      - name: 20. Checkout Defense
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-defense
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/defense
+
+      - name: 21. Checkout South Asia
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-south-asia
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/south-asia
+
+      - name: 22. Checkout Africa
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-africa
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/africa
+
+      - name: 23. Checkout Europe
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-europe
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/europe
+
+      - name: 24. Checkout Central Asia
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-central-asia
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/central-asia
+
+      - name: 25. Checkout Crime Alert
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-crime-alert
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/crime-alert
+
+      - name: 26. Checkout South East Asia
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-south-east-asia
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/south-east-asia
+
+      - name: 27. Checkout East Asia
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-east-asia
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/east-asia
+
+      - name: 28. Checkout North America
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-north-america
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/north-america
+
+      - name: 29. Checkout South America
+        uses: actions/checkout@v4
+        with:
+          repository: TheMuslimPost/tmp-articles-south-america
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          path: ./_article_repos/south-america
+
+      # --- CONSOLIDATION ---
+      - name: 30. Consolidate All Posts into Astro Content
         run: |
-          mkdir -p ./main_site/src/content/news
-          for dir in ./_article_repos/*; do
+          for dir in ./_article_repos/*/; do
+            dir_name=$(basename "$dir")
             if [ -d "$dir/posts" ]; then
-              echo "Copying posts from $(basename $dir)..."
+              echo "Copying posts from $dir_name..."
               cp -r "$dir/posts"/. ./main_site/src/content/news/
             fi
           done
@@ -85,29 +235,26 @@ jobs:
             echo "Copying user archives..."
             cp -r "./_article_repos/user-archives/_posts/." ./main_site/src/content/news/
           fi
+          echo "--- Verification: Files in src/content/news ---"
+          ls ./main_site/src/content/news/ | head -20
 
-      - name: 6. Install Dependencies and Build Astro Site
+      # --- BUILD ---
+      - name: 31. Install Dependencies
         working-directory: ./main_site
-        run: |
-          npm ci
-          npm run build
+        run: npm ci
 
-      - name: 7. Prepare AssetLinks Rewrite
+      - name: 32. Build Astro Site
         working-directory: ./main_site
-        run: |
-          cp public/.well-known/assetlinks.json dist/assetlinks.json || true
-          mkdir -p dist/.well-known
-          cp public/.well-known/assetlinks.json dist/.well-known/ || true
+        run: npm run build
 
-      - name: 8. Setup GitLab CI and Directory Structure for GitLab Pages
+      # --- DEPLOY ---
+      - name: 33. Prepare Deploy Directory
         run: |
-          # Create a temporary deploy directory
           mkdir -p ./deploy_dir
-
-          # Move the compiled Astro site (dist) into the deploy directory as 'public'
           mv ./main_site/dist ./deploy_dir/public
 
-          # Create the .gitlab-ci.yml in the root of the deploy directory
+      - name: 34. Create .gitlab-ci.yml for GitLab Pages
+        run: |
           cat << 'EOF' > ./deploy_dir/.gitlab-ci.yml
           pages:
             stage: deploy
@@ -117,10 +264,10 @@ jobs:
               paths:
                 - public
             rules:
-              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+              - if: \$CI_COMMIT_BRANCH == \$CI_DEFAULT_BRANCH
           EOF
 
-      - name: 9. Force Push Compiled Site to GitLab main branch
+      - name: 35. Force Push Compiled Site to GitLab main
         env:
           GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
         run: |
@@ -130,6 +277,4 @@ jobs:
           git config user.email "actions@github.com"
           git add .
           git commit -m "Deploy Astro site compiled by GitHub Actions"
-          
-          # Force push to the 'main' branch of your GitLab Pages project
           git push --force "https://oauth2:${GITLAB_PAT}@gitlab.com/themuslimpost/website-host-astro.git" HEAD:main
